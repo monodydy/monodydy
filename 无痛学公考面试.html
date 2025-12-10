@@ -192,7 +192,8 @@
             border-bottom-color: var(--border-color-rgba);
             margin-bottom: 40px;
         }
-        /* 顶部标题字号调整为 26px */
+        
+        /* 修改：调小字号 */
         .header h1 { font-size: 26px; font-weight: 900; letter-spacing: 2px; }
         .header span { font-size: 16px; opacity: 0.9; font-weight: bold; }
 
@@ -203,7 +204,7 @@
             margin-bottom: 40px;
             letter-spacing: 4px;
             line-height: 1.2;
-            min-height: 1.2em;
+            min-height: 1.2em; /* 确保空内容时占位 */
         }
 
         .section-tag {
@@ -212,7 +213,7 @@
             font-size: 24px;
             margin-bottom: 10px;
             display: block;
-            min-height: 1em; /* 即使内容为空也占位，方便点击 */
+            min-height: 1em; /* 确保空内容时占位 */
         }
 
         .cover-text {
@@ -222,7 +223,7 @@
             margin-bottom: 30px;
             text-indent: 2em;
             font-weight: bold;
-            min-height: 1.6em;
+            min-height: 1.6em; /* 确保空内容时占位 */
         }
 
         /* 正文页元素 */
@@ -359,7 +360,8 @@
                 </div>
                 <div class="control-group">
                     <label>模块2</label>
-                    <input type="text" id="tag2" value="" placeholder="标签(如:【解析】)" style="margin-bottom:5px; width: 100px;">
+                    <!-- 修改：默认值留空 -->
+                    <input type="text" id="tag2" value="" placeholder="请输入解析标题" style="margin-bottom:5px; width: 100px;">
                     <textarea id="content2" placeholder="请输入解析内容"></textarea>
                 </div>
                 <div class="control-group">
@@ -619,7 +621,7 @@
                                     isContinuation = true;
                                     startIndex += k;
                                 } else {
-                                    // 当前页已满，无法放入新段落的任何字符，直接换页
+                                    // 当前页已满
                                 }
 
                                 if (currentPageBlocks.length > 0) {
