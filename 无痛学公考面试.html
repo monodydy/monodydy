@@ -192,9 +192,7 @@
             border-bottom-color: var(--border-color-rgba);
             margin-bottom: 40px;
         }
-        
-        /* 修改：调小字号 */
-        .header h1 { font-size: 26px; font-weight: 900; letter-spacing: 2px; }
+        .header h1 { font-size: 36px; font-weight: 900; letter-spacing: 2px; }
         .header span { font-size: 16px; opacity: 0.9; font-weight: bold; }
 
         .main-title {
@@ -213,7 +211,6 @@
             font-size: 24px;
             margin-bottom: 10px;
             display: block;
-            min-height: 1em; /* 确保空内容时占位 */
         }
 
         .cover-text {
@@ -345,7 +342,7 @@
                 <div class="control-group">
                     <label>顶部栏文字</label>
                     <div style="display:flex; gap:5px;">
-                        <input type="text" id="topTitle" value="无痛学公考面试 Day" style="flex:1">
+                        <input type="text" id="topTitle" value="面试真题" style="flex:1">
                         <input type="text" id="subTitle" value="@耶耶局长" style="flex:1">
                     </div>
                 </div>
@@ -360,8 +357,7 @@
                 </div>
                 <div class="control-group">
                     <label>模块2</label>
-                    <!-- 修改：默认值留空 -->
-                    <input type="text" id="tag2" value="" placeholder="请输入解析标题" style="margin-bottom:5px; width: 100px;">
+                    <input type="text" id="tag2" value="【解析】" style="margin-bottom:5px; width: 100px;">
                     <textarea id="content2" placeholder="请输入解析内容"></textarea>
                 </div>
                 <div class="control-group">
@@ -621,7 +617,7 @@
                                     isContinuation = true;
                                     startIndex += k;
                                 } else {
-                                    // 当前页已满
+                                    // 当前页已满，无法放入新段落的任何字符，直接换页
                                 }
 
                                 if (currentPageBlocks.length > 0) {
