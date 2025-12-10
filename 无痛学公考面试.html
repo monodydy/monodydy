@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小红书面试笔记生成器 - 耶耶局长的公考星球</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            /* --- 核心变量 --- */
+            --primary-bg: #2b415e;
+            --text-color: #ebecec;
+            --accent-color: #d5b176;
+            
+            /* JS计算的半透明边框色 */
+            --border-color-rgba: rgba(235, 236, 236, 0.5);
+
+            /* --- 字体变量 --- */
+            --cover-font-size: 25px;
+            --body-font-size: 22px;
+            
+            --title-font: "SimHei", "Heiti SC", sans-serif;
+            --body-font: "SimSun", "Songti SC", serif;
+            
+            /* --- 尺寸变量 --- */
+            --card-width: 540px;
+            --card-height: 720px;
+
+            /* --- 动态页边距 --- */
+            --cover-pt: 50px; --cover-pb: 50px; --cover-pl: 50px; --cover-pr: 50px;
+            --body-pt: 50px; --body-pb: 50px; --body-pl: 50px; --body-pr: 50px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* --- 左侧控制面板 --- */
+        .controls {
+            width: 440px;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .control-section {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 5px;
+        }
+        
+        .control-section h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #2b415e;
+            border-left: 4px solid #d5b176;
+            padding-left: 8px;
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        .control-group label { font-weight: bold; font-size: 13px; color: #555; }
+        
+        .margin-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .margin-item { display: flex; align-items: center; gap: 5px; }
+        .margin-item span { font-size: 12px; color: #888; width: 15px; }
+        .margin-item input { flex: 1; }
+
+        input[type="text"], textarea, input[type="number"], input[type="range"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        textarea { resize: vertical; min-height: 60px; }
+
+        .color-picker-group { display: flex; align-items: center; gap: 10px; }
+        input[type="color"] { border: none; width: 40px; height: 36px; cursor: pointer; background: none; }
+        .hex-input { flex: 1; font-family: monospace; text-transform: uppercase; }
+
+        button {
+            padding: 12px;
+            background-color: #2b415e;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.2s;
+            margin-top: 5px;
+        }
+        button:hover { opacity: 0.9; }
+        button.secondary { background-color: #d5b176; color: #2b415e; }
+        button.download-btn { background-color: #28a745; margin-top: 10px; width: 100%; cursor: pointer; }
+        button.batch-btn { background-color: #ff5722; color: white; margin-top: 10px; }
+
+        /* --- 右侧预览区域 --- */
+        .preview-area {
+            flex: 1;
+            background-color: #e0e0e0;
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            position: relative; 
+        }
+
+        /* 结果容器 */
+        .result-container {
+            display: none; /* 初始隐藏 */
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            width: 100%;
+            padding-bottom: 50px;
+        }
+        
+        .result-actions {
+            width: 100%;
+            max-width: 540px;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .result-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .result-item img {
+            max-width: 300px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+        }
+
+        /* --- 卡片通用样式 --- */
+        .card {
+            width: var(--card-width);
+            height: var(--card-height);
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+            flex-shrink: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card.cover-page { padding: var(--cover-pt) var(--cover-pr) var(--cover-pb) var(--cover-pl); }
+        .card.body-page { padding: var(--body-pt) var(--body-pr) var(--body-pb) var(--body-pl); }
+
+        .font-hei { font-family: var(--title-font); }
+        .font-song { font-family: var(--body-font); }
+
+        /* 封面页元素 */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 15px;
+            border-bottom: 1px solid;
+            border-bottom-color: var(--border-color-rgba);
+            margin-bottom: 40px;
+        }
+        /* 顶部标题字号调整为 26px */
+        .header h1 { font-size: 26px; font-weight: 900; letter-spacing: 2px; }
+        .header span { font-size: 16px; opacity: 0.9; font-weight: bold; }
+
+        .main-title {
+            text-align: center;
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            letter-spacing: 4px;
+            line-height: 1.2;
+            min-height: 1.2em;
+        }
+
+        .section-tag {
+            color: var(--accent-color);
+            font-weight: bold;
+            font-size: 24px;
+            margin-bottom: 10px;
+            display: block;
+            min-height: 1em; /* 即使内容为空也占位，方便点击 */
+        }
+
+        .cover-text {
+            font-size: var(--cover-font-size);
+            line-height: 1.6;
+            text-align: justify;
+            margin-bottom: 30px;
+            text-indent: 2em;
+            font-weight: bold;
+            min-height: 1.6em;
+        }
+
+        /* 正文页元素 */
+        .page-title {
+            text-align: center;
+            color: var(--accent-color);
+            font-size: 32px;
+            font-weight: 900;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+            flex-shrink: 0;
+        }
+
+        .content-body {
+            flex: 1;
+            font-size: var(--body-font-size);
+            line-height: 1.8;
+            text-align: justify;
+            overflow: hidden;
+            font-weight: bold;
+        }
+        
+        .content-body p { text-indent: 2em; margin-bottom: 0; }
+        .content-body p.no-indent { text-indent: 0 !important; }
+
+        .highlight { color: var(--accent-color); font-weight: 900; }
+
+        .page-number {
+            position: absolute; bottom: 15px; right: 20px;
+            font-size: 12px; opacity: 0.6; font-family: Arial, sans-serif;
+            font-weight: bold;
+        }
+
+        #measure-container {
+            position: absolute; top: 0; left: 0; visibility: hidden; z-index: -100;
+            width: calc(var(--card-width) - var(--body-pl) - var(--body-pr));
+            font-family: var(--body-font);
+            font-size: var(--body-font-size);
+            font-weight: bold;
+            line-height: 1.8;
+            text-align: justify;
+        }
+        #measure-container p { margin-bottom: 0; text-indent: 2em; }
+        #measure-container p.no-indent { text-indent: 0 !important; }
+
+        @media (max-width: 768px) {
+            body { overflow: auto; height: auto; }
+            .app-container { flex-direction: column; overflow: visible; }
+            .controls { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #ddd; }
+            .preview-area { padding: 20px; overflow: visible; }
+            .card { transform: scale(0.55); transform-origin: top center; margin-bottom: -300px; } 
+            .card:last-child { margin-bottom: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <div class="controls">
+            <h2>耶耶局长的公考星球</h2>
+            
+            <div class="control-section">
+                <h3>🎨 颜色与外观</h3>
+                <div class="control-group">
+                    <label>背景颜色</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="bgColorPicker" value="#2b415e">
+                        <input type="text" id="bgColorText" class="hex-input" value="#2b415e" maxlength="7">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>正文颜色</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="textColorPicker" value="#ebecec">
+                        <input type="text" id="textColorText" class="hex-input" value="#ebecec" maxlength="7">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>强调颜色</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="accentColorPicker" value="#d5b176">
+                        <input type="text" id="accentColorText" class="hex-input" value="#d5b176" maxlength="7">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>📐 布局与字体</h3>
+                <div class="control-group">
+                    <label>首页页边距 (上/下/左/右 px)</label>
+                    <div class="margin-inputs">
+                        <div class="margin-item"><span>T</span><input type="number" id="coverPt" value="50"></div>
+                        <div class="margin-item"><span>B</span><input type="number" id="coverPb" value="50"></div>
+                        <div class="margin-item"><span>L</span><input type="number" id="coverPl" value="50"></div>
+                        <div class="margin-item"><span>R</span><input type="number" id="coverPr" value="50"></div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>正文页边距 (上/下/左/右 px)</label>
+                    <div class="margin-inputs">
+                        <div class="margin-item"><span>T</span><input type="number" id="bodyPt" value="50"></div>
+                        <div class="margin-item"><span>B</span><input type="number" id="bodyPb" value="50"></div>
+                        <div class="margin-item"><span>L</span><input type="number" id="bodyPl" value="50"></div>
+                        <div class="margin-item"><span>R</span><input type="number" id="bodyPr" value="50"></div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>首页字号: <span id="coverSizeVal">25</span>px</label>
+                    <input type="range" id="coverFontSize" min="14" max="36" value="25" step="1">
+                </div>
+                <div class="control-group">
+                    <label>正文页字号: <span id="bodySizeVal">22</span>px</label>
+                    <input type="range" id="bodyFontSize" min="14" max="30" value="22" step="1">
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>📝 内容设置</h3>
+                <div class="control-group">
+                    <label>顶部栏文字</label>
+                    <div style="display:flex; gap:5px;">
+                        <input type="text" id="topTitle" value="无痛学公考面试 Day" style="flex:1">
+                        <input type="text" id="subTitle" value="@耶耶局长" style="flex:1">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>主标题</label>
+                    <input type="text" id="mainTitle" value="" placeholder="请输入主标题">
+                </div>
+                <div class="control-group">
+                    <label>模块1</label>
+                    <input type="text" id="tag1" value="【题目】" style="margin-bottom:5px; width: 100px;">
+                    <textarea id="content1" placeholder="请输入题目内容"></textarea>
+                </div>
+                <div class="control-group">
+                    <label>模块2</label>
+                    <input type="text" id="tag2" value="" placeholder="标签(如:【解析】)" style="margin-bottom:5px; width: 100px;">
+                    <textarea id="content2" placeholder="请输入解析内容"></textarea>
+                </div>
+                <div class="control-group">
+                    <label>正文标题</label>
+                    <input type="text" id="bodyTitle" value="答题示例">
+                </div>
+                <div class="control-group">
+                    <label>正文详情</label>
+                    <textarea id="answerContent" style="height: 150px;" placeholder="请输入答题内容 (支持 **加粗** 高亮)"></textarea>
+                </div>
+            </div>
+
+            <button onclick="generateCards()">重置预览</button>
+            <button class="secondary" onclick="prepareImages()">生成图片</button>
+        </div>
+
+        <div class="preview-area" id="previewArea">
+            <div id="cardsContainer"></div>
+            <div id="resultContainer" class="result-container"></div>
+        </div>
+    </div>
+
+    <!-- 隐形测量容器 -->
+    <div id="measure-container"></div>
+
+    <!-- 隐形渲染沙盒 -->
+    <div id="sandbox" style="position: fixed; left: -9999px; top: 0; z-index: -9999;"></div>
+
+    <script>
+        // --- 1. 变量与设置 ---
+        function setupColorSync(pickerId, textId) {
+            const picker = document.getElementById(pickerId);
+            const text = document.getElementById(textId);
+            picker.addEventListener('input', () => { text.value = picker.value; updateStyles(); });
+            text.addEventListener('input', () => {
+                if (/^#([0-9A-F]{3}){1,2}$/i.test(text.value)) {
+                    picker.value = text.value;
+                    updateStyles();
+                }
+            });
+        }
+        setupColorSync('bgColorPicker', 'bgColorText');
+        setupColorSync('textColorPicker', 'textColorText');
+        setupColorSync('accentColorPicker', 'accentColorText');
+
+        const inputs = {
+            bgColor: document.getElementById('bgColorText'),
+            textColor: document.getElementById('textColorText'),
+            accentColor: document.getElementById('accentColorText'),
+            coverPt: document.getElementById('coverPt'),
+            coverPb: document.getElementById('coverPb'),
+            coverPl: document.getElementById('coverPl'),
+            coverPr: document.getElementById('coverPr'),
+            bodyPt: document.getElementById('bodyPt'),
+            bodyPb: document.getElementById('bodyPb'),
+            bodyPl: document.getElementById('bodyPl'),
+            bodyPr: document.getElementById('bodyPr'),
+            coverFontSize: document.getElementById('coverFontSize'),
+            bodyFontSize: document.getElementById('bodyFontSize'),
+            topTitle: document.getElementById('topTitle'),
+            subTitle: document.getElementById('subTitle'),
+            mainTitle: document.getElementById('mainTitle'),
+            tag1: document.getElementById('tag1'),
+            content1: document.getElementById('content1'),
+            tag2: document.getElementById('tag2'),
+            content2: document.getElementById('content2'),
+            bodyTitle: document.getElementById('bodyTitle'),
+            answerContent: document.getElementById('answerContent')
+        };
+
+        // --- 监听 ---
+        inputs.coverFontSize.addEventListener('input', (e) => {
+            document.getElementById('coverSizeVal').innerText = e.target.value;
+            updateStyles(); triggerRefresh();
+        });
+        inputs.bodyFontSize.addEventListener('input', (e) => {
+            document.getElementById('bodySizeVal').innerText = e.target.value;
+            updateStyles(); triggerRefresh();
+        });
+
+        Object.values(inputs).forEach(el => {
+            if(el) el.addEventListener('input', () => {
+                updateStyles();
+                triggerRefresh();
+            });
+        });
+
+        let refreshTimer = null;
+        function triggerRefresh() {
+            if(refreshTimer) clearTimeout(refreshTimer);
+            refreshTimer = setTimeout(generateCards, 300);
+        }
+
+        function hexToRgba(hex, alpha) {
+            let c;
+            if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+                c = hex.substring(1).split('');
+                if(c.length === 3){
+                    c= [c[0], c[0], c[1], c[1], c[2], c[2]];
+                }
+                c = '0x'+c.join('');
+                return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+alpha+')';
+            }
+            return `rgba(255,255,255,${alpha})`;
+        }
+
+        function updateStyles() {
+            const root = document.documentElement.style;
+            root.setProperty('--primary-bg', inputs.bgColor.value);
+            root.setProperty('--text-color', inputs.textColor.value);
+            root.setProperty('--accent-color', inputs.accentColor.value);
+            
+            const rgbaColor = hexToRgba(inputs.textColor.value, 0.5);
+            root.setProperty('--border-color-rgba', rgbaColor);
+
+            root.setProperty('--cover-font-size', inputs.coverFontSize.value + 'px');
+            root.setProperty('--body-font-size', inputs.bodyFontSize.value + 'px');
+            root.setProperty('--cover-pt', inputs.coverPt.value + 'px');
+            root.setProperty('--cover-pb', inputs.coverPb.value + 'px');
+            root.setProperty('--cover-pl', inputs.coverPl.value + 'px');
+            root.setProperty('--cover-pr', inputs.coverPr.value + 'px');
+            root.setProperty('--body-pt', inputs.bodyPt.value + 'px');
+            root.setProperty('--body-pb', inputs.bodyPb.value + 'px');
+            root.setProperty('--body-pl', inputs.bodyPl.value + 'px');
+            root.setProperty('--body-pr', inputs.bodyPr.value + 'px');
+        }
+
+        function parseTextToAtoms(text) {
+            const atoms = [];
+            const parts = text.split(/(\*\*.*?\*\*)/g);
+            parts.forEach(part => {
+                let isBold = false;
+                let content = part;
+                if (part.startsWith('**') && part.endsWith('**')) {
+                    isBold = true;
+                    content = part.slice(2, -2);
+                }
+                for (let char of content) {
+                    atoms.push({ char, isBold });
+                }
+            });
+            return atoms;
+        }
+
+        function atomsToHtml(atoms) {
+            let html = '';
+            let inSpan = false;
+            atoms.forEach(atom => {
+                if (atom.isBold && !inSpan) {
+                    html += '<span class="highlight">';
+                    inSpan = true;
+                } else if (!atom.isBold && inSpan) {
+                    html += '</span>';
+                    inSpan = false;
+                }
+                html += atom.char;
+            });
+            if (inSpan) html += '</span>';
+            return html;
+        }
+
+        // --- 生成逻辑 ---
+        function generateCards() {
+            document.getElementById('resultContainer').style.display = 'none';
+            document.getElementById('resultContainer').innerHTML = '';
+            
+            const container = document.getElementById('cardsContainer');
+            container.style.display = 'flex'; 
+            container.style.flexDirection = 'column';
+            container.style.gap = '30px';
+            container.innerHTML = '';
+            
+            createCoverPage(container);
+
+            const answerText = inputs.answerContent.value;
+            if (answerText.trim()) {
+                paginateContent(answerText, container);
+            }
+        }
+
+        function createCoverPage(container) {
+            const card = document.createElement('div');
+            card.className = 'card cover-page';
+            card.innerHTML = `
+                <div class="header font-hei">
+                    <h1>${inputs.topTitle.value}</h1>
+                    <span class="font-song">${inputs.subTitle.value}</span>
+                </div>
+                <div class="main-title font-hei">${inputs.mainTitle.value}</div>
+                <div class="section">
+                    <div class="section-tag font-hei">${inputs.tag1.value}</div>
+                    <div class="cover-text font-song">${inputs.content1.value}</div>
+                </div>
+                <div class="section">
+                    <div class="section-tag font-hei">${inputs.tag2.value}</div>
+                    <div class="cover-text font-song">${inputs.content2.value}</div>
+                </div>
+                <div class="page-number">1</div>
+            `;
+            container.appendChild(card);
+        }
+
+        // --- 分页逻辑 ---
+        function paginateContent(fullText, container) {
+            const measureContainer = document.getElementById('measure-container');
+            measureContainer.style.fontSize = inputs.bodyFontSize.value + 'px';
+
+            const h1 = getAvailableHeight(true, container);
+            const h2 = getAvailableHeight(false, container);
+
+            const paragraphs = fullText.split('\n');
+            let pages = []; 
+            let currentPageBlocks = [];
+            
+            for (let i = 0; i < paragraphs.length; i++) {
+                const rawPara = paragraphs[i];
+                if (!rawPara.trim()) continue;
+
+                const atoms = parseTextToAtoms(rawPara);
+                let startIndex = 0;
+                let isContinuation = false; 
+
+                while (startIndex < atoms.length) {
+                    const limitHeight = (pages.length === 0) ? h1 : h2;
+                    let baseHtml = currentPageBlocks.map(b => 
+                        `<p class="${b.isIndent ? '' : 'no-indent'}">${b.html}</p>`
+                    ).join('');
+
+                    const remainingAtoms = atoms.slice(startIndex);
+                    const fullParaHtml = atomsToHtml(remainingAtoms);
+                    const indentClass = isContinuation ? 'no-indent' : '';
+                    
+                    measureContainer.innerHTML = baseHtml + `<p class="${indentClass}">${fullParaHtml}</p>`;
+                    
+                    if (measureContainer.offsetHeight <= limitHeight) {
+                        currentPageBlocks.push({ html: fullParaHtml, isIndent: !isContinuation });
+                        startIndex = atoms.length;
+                        isContinuation = false; 
+                    } else {
+                        let fitAtoms = [];
+                        let hasOverflow = false;
+                        
+                        for (let k = 0; k < remainingAtoms.length; k++) {
+                            fitAtoms.push(remainingAtoms[k]);
+                            const currentHtml = atomsToHtml(fitAtoms);
+                            measureContainer.innerHTML = baseHtml + `<p class="${indentClass}">${currentHtml}</p>`;
+                            
+                            if (measureContainer.offsetHeight > limitHeight) {
+                                fitAtoms.pop();
+                                hasOverflow = true;
+                                
+                                if (fitAtoms.length > 0) {
+                                    currentPageBlocks.push({
+                                        html: atomsToHtml(fitAtoms),
+                                        isIndent: !isContinuation
+                                    });
+                                    isContinuation = true;
+                                    startIndex += k;
+                                } else {
+                                    // 当前页已满，无法放入新段落的任何字符，直接换页
+                                }
+
+                                if (currentPageBlocks.length > 0) {
+                                    pages.push(currentPageBlocks);
+                                }
+                                currentPageBlocks = []; 
+                                break;
+                            }
+                        }
+                        
+                        if (!hasOverflow) {
+                             currentPageBlocks.push({ html: fullParaHtml, isIndent: !isContinuation });
+                             startIndex = atoms.length;
+                        }
+                    }
+                }
+            }
+            if (currentPageBlocks.length > 0) pages.push(currentPageBlocks);
+
+            pages.forEach((pageBlocks, index) => {
+                renderContentPage(pageBlocks, index, container);
+            });
+        }
+
+        function getAvailableHeight(isFirstPage, container) {
+            const card = document.createElement('div');
+            card.className = 'card body-page';
+            let html = '';
+            if (isFirstPage) html += `<h2 class="page-title font-hei">${inputs.bodyTitle.value}</h2>`;
+            html += `<div class="content-body font-song" id="temp-body"></div>`;
+            html += `<div class="page-number">1</div>`;
+            card.innerHTML = html;
+            container.appendChild(card);
+            const height = card.querySelector('#temp-body').clientHeight;
+            container.removeChild(card);
+            return height;
+        }
+
+        function renderContentPage(blocks, pageIndex, container) {
+            const card = document.createElement('div');
+            card.className = 'card body-page';
+            const isFirst = (pageIndex === 0);
+            const titleHtml = isFirst ? `<h2 class="page-title font-hei">${inputs.bodyTitle.value}</h2>` : '';
+            const contentHtml = blocks.map(b => 
+                `<p class="${b.isIndent ? '' : 'no-indent'}">${b.html}</p>`
+            ).join('');
+
+            card.innerHTML = `
+                ${titleHtml}
+                <div class="content-body font-song">${contentHtml}</div>
+                <div class="page-number">${pageIndex + 2}</div>
+            `;
+            container.appendChild(card);
+        }
+
+        // --- 沙盒渲染模式 ---
+        async function prepareImages() {
+            const originalCards = document.querySelectorAll('#cardsContainer .card');
+            if (originalCards.length === 0) return;
+            
+            const btn = document.querySelector('button.secondary');
+            const originalText = btn.innerText;
+            btn.innerText = '正在生成图片...';
+            btn.disabled = true;
+
+            const resultContainer = document.getElementById('resultContainer');
+            const sandbox = document.getElementById('sandbox');
+            
+            resultContainer.innerHTML = '';
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'result-actions';
+            actionsDiv.innerHTML = `<button class="batch-btn" onclick="batchDownload()">一键下载全部图片</button>`;
+            resultContainer.appendChild(actionsDiv);
+
+            resultContainer.style.display = 'flex';
+            sandbox.innerHTML = '';
+
+            for (let i = 0; i < originalCards.length; i++) {
+                const clone = originalCards[i].cloneNode(true);
+                clone.style.transform = 'none';
+                clone.style.margin = '0';
+                clone.style.position = 'absolute';
+                clone.style.top = '0';
+                clone.style.left = '0';
+                sandbox.appendChild(clone);
+
+                try {
+                    const canvas = await html2canvas(clone, {
+                        scale: 2, 
+                        useCORS: true,
+                        backgroundColor: inputs.bgColor.value,
+                        logging: false,
+                        width: 540,
+                        height: 720,
+                        windowWidth: 540,
+                        windowHeight: 720,
+                        scrollX: 0,
+                        scrollY: 0,
+                        x: 0,
+                        y: 0
+                    });
+                    
+                    const imgData = canvas.toDataURL('image/png');
+                    const fileName = `笔记_${inputs.mainTitle.value || '未命名'}_${i + 1}.png`;
+
+                    const item = document.createElement('div');
+                    item.className = 'result-item';
+                    item.innerHTML = `
+                        <img src="${imgData}" alt="第${i+1}页">
+                        <a href="${imgData}" download="${fileName}" class="dl-link" style="text-decoration:none; width:100%;">
+                            <button class="download-btn">下载第 ${i+1} 页</button>
+                        </a>
+                    `;
+                    resultContainer.appendChild(item);
+
+                } catch (err) {
+                    console.error("生成失败:", err);
+                } finally {
+                    sandbox.innerHTML = '';
+                }
+            }
+
+            document.getElementById('cardsContainer').style.display = 'none';
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+
+        // --- 批量下载功能 ---
+        function batchDownload() {
+            const links = document.querySelectorAll('.dl-link');
+            if (links.length === 0) return;
+            
+            links.forEach((link, index) => {
+                setTimeout(() => {
+                    link.click();
+                }, index * 500);
+            });
+            
+            const btn = document.querySelector('.batch-btn');
+            const oldText = btn.innerText;
+            btn.innerText = '下载任务已开始...';
+            btn.disabled = true;
+            setTimeout(() => {
+                btn.innerText = oldText;
+                btn.disabled = false;
+            }, links.length * 500 + 1000);
+        }
+
+        // 初始化
+        updateStyles();
+        window.onload = generateCards;
+
+    </script>
+</body>
+</html>
